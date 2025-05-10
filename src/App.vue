@@ -17,6 +17,7 @@ const resources = reactive([
   { id: 'token-sampling', name: 'Intro to Token Sampling', link: 'https://colab.research.google.com/drive/1pgNriL94PTFS58eSk8YT4K5ZO6ybIrwx' },
   { id: 'ml-interviews', name: 'Intro to ML Interviews', link: 'https://huyenchip.com/ml-interviews-book/' },
   { id: 'transformer-interp', name: 'Transformer Interpretability', link: 'https://arena-chapter1-transformer-interp.streamlit.app/' },
+  { id: 'ml-lecture-note', name: 'Cho\'s ML Lecture Note', link: 'https://arxiv.org/abs/2505.03861'}
     
 
   // { id: 'ctci', name: 'Cracking the Coding Interview Book', link: 'https://www.amazon.com/Cracking-Coding-Interview-Programming-Questions/dp/0984782850' },
@@ -27,7 +28,7 @@ const resources = reactive([
 ]);
 
 // --- State Management (Placeholder - will be implemented next) ---
-// This will hold data like { lc: { lastPracticed: ..., n: ..., nextReviewDate: ... }, ... }
+// This will hold data like { lc: { lastPracticed: ..., n: ..., nextReviewDate: ..., completed: ... }, ... }
 const practiceState = ref({}); // Will be loaded from localStorage
 
 // --- Computed Properties for Sorting & Suggestion (Placeholders) ---
@@ -36,18 +37,27 @@ const practiceState = ref({}); // Will be loaded from localStorage
 // Combine resources with their state for sorting/display
 const resourcesWithState = computed(() => {
   return resources.map(r => {
-    const state = practiceState.value[r.id] || { lastPracticed: null, n: 0, nextReviewDate: null };
+    const state = practiceState.value[r.id] || { lastPracticed: null, n: 0, nextReviewDate: null, completed: false };
     return {
       ...r, // Spread resource props (id, name, link)
-      state // Add state object (lastPracticed, n, nextReviewDate)
+      state // Add state object (lastPracticed, n, nextReviewDate, completed)
     };
   });
+});
+
+// Separate completed and active resources
+const activeResources = computed(() => {
+  return resourcesWithState.value.filter(r => !r.state.completed);
+});
+
+const completedResources = computed(() => {
+  return resourcesWithState.value.filter(r => r.state.completed);
 });
 
 // Sort the combined resources
 const sortedResourcesWithState = computed(() => {
   const now = Date.now();
-  return [...resourcesWithState.value].sort((a, b) => {
+  return [...activeResources.value].sort((a, b) => {
     const stateA = a.state;
     const stateB = b.state;
 
@@ -64,11 +74,10 @@ const sortedResourcesWithState = computed(() => {
   });
 });
 
-
 // Determine the next suggestion
 const suggestion = computed(() => {
   const now = Date.now();
-  let suggestionPool = [...resourcesWithState.value]; // Use combined data
+  let suggestionPool = [...activeResources.value]; // Use only active resources
 
   // Filter for items that are due (next review date is past or today)
   let dueItems = suggestionPool.filter(item => item.state.n > 0 && item.state.nextReviewDate && item.state.nextReviewDate <= now);
@@ -118,12 +127,32 @@ function handlePractice(resourceId) {
       [resourceId]: {
           lastPracticed: now,
           n: newN,
-          nextReviewDate: nextReviewDate
+          nextReviewDate: nextReviewDate,
+          completed: currentState.completed // Preserve completion status
       }
   };
 
   console.log(`Updated state for ${resourceId}:`, practiceState.value[resourceId]);
 }
+
+function handleComplete(resourceId) {
+  console.log(`Marking resource ${resourceId} as completed`);
+  const now = Date.now();
+  const currentState = practiceState.value[resourceId] || { n: 0 };
+
+  // Update the state for this resource
+  practiceState.value = {
+      ...practiceState.value,
+      [resourceId]: {
+          ...currentState,
+          completed: true,
+          completedAt: now
+      }
+  };
+
+  console.log(`Marked ${resourceId} as completed:`, practiceState.value[resourceId]);
+}
+
 // --- Load initial state & Watch for changes (Placeholder) ---
 onMounted(() => {
   practiceState.value = loadPracticeState();
@@ -141,11 +170,20 @@ watch(practiceState, (newState) => {
 
     <Suggestion :item="suggestion" />
 
-    <h2>Resources</h2>
+    <h2>Active Resources</h2>
     <ResourceList
       :items="sortedResourcesWithState"
       @practice="handlePractice"
+      @complete="handleComplete"
     />
+
+    <h2 v-if="completedResources.length > 0">Completed Resources</h2>
+    <div v-if="completedResources.length > 0" class="completed-resources">
+      <div v-for="item in completedResources" :key="item.id" class="completed-item">
+        <a :href="item.link" target="_blank" class="resource-link">{{ item.name }}</a>
+        <span class="completion-date">Completed: {{ new Date(item.state.completedAt).toLocaleDateString() }}</span>
+      </div>
+    </div>
 
     <footer>
       <p>Keep up the great work!</p>
@@ -168,6 +206,39 @@ h1, h2 {
   color: #333;
   text-align: center;
   margin-bottom: 1.5em;
+}
+
+.completed-resources {
+  margin-top: 20px;
+  padding: 15px;
+  background-color: #f0f0f0;
+  border-radius: 6px;
+}
+
+.completed-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px;
+  margin: 5px 0;
+  background-color: #fff;
+  border-radius: 4px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+.resource-link {
+  color: #2c3e50;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.resource-link:hover {
+  text-decoration: underline;
+}
+
+.completion-date {
+  color: #666;
+  font-size: 0.9em;
 }
 
 footer {

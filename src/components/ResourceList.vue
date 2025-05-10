@@ -8,10 +8,14 @@ defineProps({
   }
 });
 
-const emit = defineEmits(['practice']);
+const emit = defineEmits(['practice', 'complete']);
 
 function onItemPractice(resourceId) {
   emit('practice', resourceId);
+}
+
+function onItemComplete(resourceId) {
+  emit('complete', resourceId);
 }
 </script>
 
@@ -22,6 +26,7 @@ function onItemPractice(resourceId) {
       :key="item.id"
       :item="item"
       @practice="onItemPractice"
+      @complete="onItemComplete"
     />
   </ul>
 </template>

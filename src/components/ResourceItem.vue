@@ -10,10 +10,14 @@ const props = defineProps({
   }
 });
 
-const emit = defineEmits(['practice']);
+const emit = defineEmits(['practice', 'complete']);
 
 function markPracticed() {
   emit('practice', props.item.id);
+}
+
+function markCompleted() {
+  emit('complete', props.item.id);
 }
 
 // Use the utility function for display
@@ -40,9 +44,14 @@ const nextReviewDisplay = computed(() => {
          <span v-if="item.state?.n > 0"> | Next review: {{ nextReviewDisplay }}</span>
        </span>
     </div>
-    <button @click="markPracticed" class="practice-button">
-      Mark Practiced Today
-    </button>
+    <div class="button-group">
+      <button @click="markPracticed" class="practice-button">
+        Mark Practiced Today
+      </button>
+      <button @click="markCompleted" class="complete-button" v-if="!item.state?.completed">
+        Mark Completed
+      </button>
+    </div>
   </li>
 </template>
 
@@ -90,20 +99,35 @@ const nextReviewDisplay = computed(() => {
     color: #6c757d; /* Bootstrap's text-muted color */
 }
 
-.practice-button {
+.button-group {
+  display: flex;
+  gap: 8px;
+}
+
+.practice-button, .complete-button {
   padding: 8px 12px;
   font-size: 0.9em;
   color: white;
-  background-color: #28a745;
   border: none;
   border-radius: 4px;
   cursor: pointer;
   transition: background-color 0.2s ease;
   white-space: nowrap; /* Prevent button text wrapping */
-  margin-left: 10px; /* Add some space between info and button */
+}
+
+.practice-button {
+  background-color: #28a745;
 }
 
 .practice-button:hover {
   background-color: #218838;
+}
+
+.complete-button {
+  background-color: #6c757d;
+}
+
+.complete-button:hover {
+  background-color: #5a6268;
 }
 </style>
